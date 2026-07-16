@@ -1,0 +1,66 @@
+x-kafka-image: &kafka-image
+  "apache/kafka-native:4.3.1"
+
+x-common-conf: &common-conf
+  KAFKA_PROCESS_ROLES: "broker,controller"
+  KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_LOCALHOST:PLAINTEXT"
+  KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093"
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "2"
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+  KAFKA_NUM_PARTITIONS: "3"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "12m"
+    max-file: "5"
+
+volumes:
+  kafka1-secrets:
+  kafka1-shared-config:
+  kafka2-secrets:
+  kafka2-shared-config:
+
+services:
+  kafka1:
+    image: *kafka-image
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,PLAINTEXT://:9092,PLAINTEXT_LOCALHOST://:9192"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka1:9092,PLAINTEXT_LOCALHOST://localhost:9192"
+      <<: *common-conf
+    ports:
+      - name: "broker"
+        published: 9192
+        target: 9192
+    volumes:
+      - type: "volume"
+        source: "kafka1-secrets"
+        target: "/etc/kafka/secrets"
+      - type: "volume"
+        source: "kafka1-shared-config"
+        target: "/mnt/shared/config"
+    logging: *default-logging
+
+  kafka2:
+    image: *kafka-image
+    environment:
+      KAFKA_NODE_ID: "2"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,PLAINTEXT://:9092,PLAINTEXT_LOCALHOST://:9193"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka2:9092,PLAINTEXT_LOCALHOST://localhost:9193"
+      <<: *common-conf
+    ports:
+      - name: "broker"
+        published: 9193
+        target: 9193
+    volumes:
+      - type: "volume"
+        source: "kafka2-secrets"
+        target: "/etc/kafka/secrets"
+      - type: "volume"
+        source: "kafka2-shared-config"
+        target: "/mnt/shared/config"
+    logging: *default-logging
