@@ -5,8 +5,8 @@ x-common-conf: &common-conf
   KAFKA_PROCESS_ROLES: "broker,controller"
   KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
   KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_LOCALHOST:PLAINTEXT"
-  KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093"
-  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "2"
+  KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "3"
   KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
   KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
   KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
@@ -24,6 +24,8 @@ volumes:
   kafka1-data:
   kafka2-secrets:
   kafka2-data:
+  kafka3-secrets:
+  kafka3-data:
 
 services:
   kafka1:
@@ -79,5 +81,33 @@ services:
         target: "/etc/kafka/secrets"
       - type: "volume"
         source: "kafka2-data"
+        target: "/var/lib/kafka/data"
+    logging: *default-logging
+
+  kafka3:
+    image: *kafka-image
+    environment:
+      KAFKA_NODE_ID: "3"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,PLAINTEXT://:9092,PLAINTEXT_LOCALHOST://:9194"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka3:9092,PLAINTEXT_LOCALHOST://localhost:9194"
+      <<: *common-conf
+    ports:
+      - name: "broker"
+        published: 9194
+        target: 9194
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9194", "--list"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    volumes:
+      - type: "volume"
+        source: "kafka-shared-config"
+        target: "/mnt/shared/config"
+      - type: "volume"
+        source: "kafka3-secrets"
+        target: "/etc/kafka/secrets"
+      - type: "volume"
+        source: "kafka3-data"
         target: "/var/lib/kafka/data"
     logging: *default-logging
