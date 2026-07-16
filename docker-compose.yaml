@@ -1,5 +1,5 @@
 x-kafka-image: &kafka-image
-  "apache/kafka-native:4.3.1"
+  "apache/kafka:4.3.1"
 
 x-common-conf: &common-conf
   KAFKA_PROCESS_ROLES: "broker,controller"
@@ -19,10 +19,11 @@ x-logging: &default-logging
     max-file: "5"
 
 volumes:
+  kafka-shared-config:
   kafka1-secrets:
-  kafka1-shared-config:
+  kafka1-data:
   kafka2-secrets:
-  kafka2-shared-config:
+  kafka2-data:
 
 services:
   kafka1:
@@ -36,13 +37,21 @@ services:
       - name: "broker"
         published: 9192
         target: 9192
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9192", "--list"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
     volumes:
+      - type: "volume"
+        source: "kafka-shared-config"
+        target: "/mnt/shared/config"
       - type: "volume"
         source: "kafka1-secrets"
         target: "/etc/kafka/secrets"
       - type: "volume"
-        source: "kafka1-shared-config"
-        target: "/mnt/shared/config"
+        source: "kafka1-data"
+        target: "/var/lib/kafka/data"
     logging: *default-logging
 
   kafka2:
@@ -56,11 +65,19 @@ services:
       - name: "broker"
         published: 9193
         target: 9193
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9193", "--list"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
     volumes:
+      - type: "volume"
+        source: "kafka-shared-config"
+        target: "/mnt/shared/config"
       - type: "volume"
         source: "kafka2-secrets"
         target: "/etc/kafka/secrets"
       - type: "volume"
-        source: "kafka2-shared-config"
-        target: "/mnt/shared/config"
+        source: "kafka2-data"
+        target: "/var/lib/kafka/data"
     logging: *default-logging
